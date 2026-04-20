@@ -31,7 +31,7 @@ public class Server {
           System.out.println("Client disconnected.");
           break;
         }
-        System.out.println(clientMessage);
+        System.out.println("Client: " + clientMessage);
 
         // server response
         String serverMessage = "Server: " + serverInput.readLine();
