@@ -70,8 +70,10 @@ public class ClientGUI {
           handleServerMessage(message);
         }
 
-        updateStatus("Server disconnected.");
-        setBoardEnabled(false);
+        if (!gameOver) {
+          updateStatus("Server disconnected.");
+          setBoardEnabled(false);
+        }
       } catch (IOException e) {
         updateStatus("Could not connect to server.");
       }
