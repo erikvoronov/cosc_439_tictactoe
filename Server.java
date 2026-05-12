@@ -5,7 +5,7 @@ public class Server {
 
   static int PORT = 69;
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) {
     System.out.println("Server is running...");
     try {
       String serverIP = InetAddress.getLocalHost().getHostAddress();
@@ -41,7 +41,7 @@ public class Server {
       socket.close();
       serverSocket.close();
 
-    } catch (UnknownHostException e) {
+    } catch (IOException e) {
       System.out.println(e.getMessage());
     }
   }
