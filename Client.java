@@ -9,12 +9,7 @@ public class Client {
   private static final int DEFAULT_PORT = 69;
 
   public static void main(String[] args) {
-    String host;
-    if (args.length > 0) {
-      host = args[0];
-    } else {
-      host = "127.0.0.1";
-    }
+    String host = args.length > 0 ? args[0] : "127.0.0.1";
     int port = DEFAULT_PORT;
     if (args.length > 1) {
       try {
