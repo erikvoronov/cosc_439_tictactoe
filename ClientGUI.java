@@ -1,4 +1,5 @@
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.io.BufferedReader;
@@ -98,19 +99,19 @@ public class ClientGUI {
       setBoardEnabled(false);
     } else if (message.equals("WIN")) {
       gameOver = true;
-      updateStatus("You win!");
+      showResult("You Win!", Color.GREEN.darker());
       setBoardEnabled(false);
     } else if (message.equals("LOSE")) {
       gameOver = true;
-      updateStatus("You lose.");
+      showResult("You Lose.", Color.RED);
       setBoardEnabled(false);
     } else if (message.equals("DRAW")) {
       gameOver = true;
-      updateStatus("Draw game.");
+      showResult("Draw Game.", Color.ORANGE);
       setBoardEnabled(false);
     } else if (message.equals("DISCONNECT")) {
       gameOver = true;
-      updateStatus("Other player disconnected.");
+      showResult("Other player disconnected.", Color.ORANGE);
       setBoardEnabled(false);
     } else if (message.startsWith("ERROR ")) {
       updateStatus(message.substring(6));
@@ -142,7 +143,19 @@ public class ClientGUI {
   }
 
   private void updateStatus(String text) {
-    SwingUtilities.invokeLater(() -> statusLabel.setText(text));
+    SwingUtilities.invokeLater(() -> {
+      statusLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+      statusLabel.setForeground(Color.BLACK);
+      statusLabel.setText(text);
+    });
+  }
+
+  private void showResult(String text, Color color) {
+    SwingUtilities.invokeLater(() -> {
+      statusLabel.setFont(new Font("Arial", Font.BOLD, 28));
+      statusLabel.setForeground(color);
+      statusLabel.setText(text);
+    });
   }
 
   private void setBoardEnabled(boolean enabled) {
