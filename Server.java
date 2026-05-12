@@ -104,10 +104,6 @@ public class Server {
       System.out.println(e.getMessage());
     }
   }
-<<<<<<< HEAD
-}
-
-=======
 
   // Sends the board state to both players as "BOARD 1 2 3 4 5 6 7 8 9"
   public static void sendBoard(PrintWriter out1, PrintWriter out2) {
@@ -137,4 +133,3 @@ public class Server {
     return true;
   }
 }
->>>>>>> 209bfcb5c2b59ff363b45a97f8c7088c79ebf339

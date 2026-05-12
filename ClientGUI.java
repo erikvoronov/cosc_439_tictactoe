@@ -1,6 +1,11 @@
 import java.awt.BorderLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -10,17 +15,22 @@ import javax.swing.SwingUtilities;
 
 public class ClientGUI {
 
+  private static final int DEFAULT_PORT = 69;
+
   private final JFrame frame;
   private final JButton[] cells;
   private final JLabel statusLabel;
-  private char currentPlayer;
+  private PrintWriter serverOutput;
+  private String playerSymbol;
+  private boolean myTurn;
   private boolean gameOver;
 
-  public ClientGUI() {
+  public ClientGUI(String host, int port) {
     frame = new JFrame("Tic Tac Toe");
     cells = new JButton[9];
-    statusLabel = new JLabel("Player X's turn", SwingConstants.CENTER);
-    currentPlayer = 'X';
+    statusLabel = new JLabel("Connecting to server...", SwingConstants.CENTER);
+    playerSymbol = "?";
+    myTurn = false;
     gameOver = false;
 
     JPanel boardPanel = new JPanel(new GridLayout(3, 3));
@@ -30,88 +40,131 @@ public class ClientGUI {
       final int index = i;
       cells[i] = new JButton("");
       cells[i].setFont(cellFont);
-      cells[i].addActionListener(event -> playMove(index));
+      cells[i].setEnabled(false);
+      cells[i].addActionListener(event -> sendMove(index));
       boardPanel.add(cells[i]);
     }
-
-    JButton resetButton = new JButton("Reset");
-    resetButton.addActionListener(event -> resetGame());
 
     frame.setLayout(new BorderLayout());
     frame.add(statusLabel, BorderLayout.NORTH);
     frame.add(boardPanel, BorderLayout.CENTER);
-    frame.add(resetButton, BorderLayout.SOUTH);
-    frame.setSize(400, 450);
+    frame.setSize(400, 430);
     frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     frame.setLocationRelativeTo(null);
     frame.setVisible(true);
+
+    connectToServer(host, port);
   }
 
-  private void playMove(int index) {
-    if (gameOver || !cells[index].getText().isEmpty()) {
+  private void connectToServer(String host, int port) {
+    Thread connectionThread = new Thread(() -> {
+      try {
+        Socket socket = new Socket(host, port);
+        BufferedReader serverInput = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        serverOutput = new PrintWriter(socket.getOutputStream(), true);
+
+        updateStatus("Connected. Waiting for another player...");
+
+        String message;
+        while ((message = serverInput.readLine()) != null) {
+          handleServerMessage(message);
+        }
+
+        updateStatus("Server disconnected.");
+        setBoardEnabled(false);
+      } catch (IOException e) {
+        updateStatus("Could not connect to server.");
+      }
+    });
+
+    connectionThread.start();
+  }
+
+  private void handleServerMessage(String message) {
+    if (message.startsWith("ROLE ")) {
+      playerSymbol = message.substring(5);
+      updateStatus("You are Player " + playerSymbol);
+    } else if (message.startsWith("BOARD ")) {
+      updateBoard(message.substring(6).split(" "));
+    } else if (message.equals("YOUR_TURN")) {
+      myTurn = true;
+      updateStatus("Your turn. You are " + playerSymbol);
+      setBoardEnabled(true);
+    } else if (message.equals("WAIT")) {
+      myTurn = false;
+      updateStatus("Waiting for the other player...");
+      setBoardEnabled(false);
+    } else if (message.equals("WIN")) {
+      gameOver = true;
+      updateStatus("You win!");
+      setBoardEnabled(false);
+    } else if (message.equals("LOSE")) {
+      gameOver = true;
+      updateStatus("You lose.");
+      setBoardEnabled(false);
+    } else if (message.equals("DRAW")) {
+      gameOver = true;
+      updateStatus("Draw game.");
+      setBoardEnabled(false);
+    } else if (message.equals("DISCONNECT")) {
+      gameOver = true;
+      updateStatus("Other player disconnected.");
+      setBoardEnabled(false);
+    } else if (message.startsWith("ERROR ")) {
+      updateStatus(message.substring(6));
+      setBoardEnabled(true);
+    }
+  }
+
+  private void sendMove(int index) {
+    if (!myTurn || gameOver || serverOutput == null || !cells[index].getText().isEmpty()) {
       return;
     }
 
-    cells[index].setText(String.valueOf(currentPlayer));
-
-    if (hasWinner()) {
-      statusLabel.setText("Player " + currentPlayer + " wins!");
-      gameOver = true;
-    } else if (isBoardFull()) {
-      statusLabel.setText("It's a tie!");
-      gameOver = true;
-    } else {
-      currentPlayer = currentPlayer == 'X' ? 'O' : 'X';
-      statusLabel.setText("Player " + currentPlayer + "'s turn");
-    }
+    serverOutput.println(index + 1);
+    myTurn = false;
+    setBoardEnabled(false);
+    updateStatus("Move sent. Waiting...");
   }
 
-  private boolean hasWinner() {
-    int[][] winningLines = {
-      {0, 1, 2},
-      {3, 4, 5},
-      {6, 7, 8},
-      {0, 3, 6},
-      {1, 4, 7},
-      {2, 5, 8},
-      {0, 4, 8},
-      {2, 4, 6}
-    };
-
-    for (int[] line : winningLines) {
-      String first = cells[line[0]].getText();
-      String second = cells[line[1]].getText();
-      String third = cells[line[2]].getText();
-
-      if (!first.isEmpty() && first.equals(second) && second.equals(third)) {
-        return true;
+  private void updateBoard(String[] board) {
+    SwingUtilities.invokeLater(() -> {
+      for (int i = 0; i < cells.length && i < board.length; i++) {
+        if (board[i].equals("X") || board[i].equals("O")) {
+          cells[i].setText(board[i]);
+        } else {
+          cells[i].setText("");
+        }
       }
-    }
-
-    return false;
+    });
   }
 
-  private boolean isBoardFull() {
-    for (JButton cell : cells) {
-      if (cell.getText().isEmpty()) {
-        return false;
+  private void updateStatus(String text) {
+    SwingUtilities.invokeLater(() -> statusLabel.setText(text));
+  }
+
+  private void setBoardEnabled(boolean enabled) {
+    SwingUtilities.invokeLater(() -> {
+      for (JButton cell : cells) {
+        cell.setEnabled(enabled && !gameOver && cell.getText().isEmpty());
       }
-    }
-
-    return true;
-  }
-
-  private void resetGame() {
-    for (JButton cell : cells) {
-      cell.setText("");
-    }
-
-    currentPlayer = 'X';
-    gameOver = false;
-    statusLabel.setText("Player X's turn");
+    });
   }
 
   public static void main(String[] args) {
-    SwingUtilities.invokeLater(ClientGUI::new);
+    String host = args.length > 0 ? args[0] : "127.0.0.1";
+    int port = DEFAULT_PORT;
+
+    if (args.length > 1) {
+      try {
+        port = Integer.parseInt(args[1]);
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid port: " + args[1]);
+        return;
+      }
+    }
+
+    int finalPort = port;
+    SwingUtilities.invokeLater(() -> new ClientGUI(host, finalPort));
   }
 }
